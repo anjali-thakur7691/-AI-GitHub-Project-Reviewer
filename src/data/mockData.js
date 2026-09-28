@@ -1,0 +1,138 @@
+export const initialRepoData = {
+  name: 'next.js',
+  url: 'https://github.com/vercel/next.js',
+  description: 'The React Framework for the Web.',
+  stars: '116k',
+  forks: '22k',
+  updated: '2 days ago',
+  primaryLanguage: 'TypeScript',
+  totalFiles: '1,248',
+  linesOfCode: '312,456',
+  healthScore: 86,
+  scoreBreakdown: {
+    codeQuality: 91,
+    security: 78,
+    performance: 84,
+    maintainability: 89,
+    testing: 76,
+  },
+  languages: [
+    { name: 'TypeScript', percentage: 62.4, color: '#3178c6' },
+    { name: 'JavaScript', percentage: 24.1, color: '#f7df1e' },
+    { name: 'CSS', percentage: 8.2, color: '#563d7c' },
+    { name: 'Other', percentage: 5.3, color: '#6e7681' },
+  ],
+  structure: [
+    { name: '.github', type: 'folder', items: ['workflows', 'CODEOWNERS', 'PULL_REQUEST_TEMPLATE.md'] },
+    { name: 'app', type: 'folder', items: ['layout.tsx', 'page.tsx', 'globals.css'] },
+    { name: 'components', type: 'folder', items: ['Header.tsx', 'Footer.tsx', 'Sidebar.tsx'] },
+    { name: 'lib', type: 'folder', items: ['dataProcessor.js', 'utils.ts', 'api.ts'] },
+    { name: 'pages', type: 'folder', items: ['index.tsx', '_app.tsx', 'api/'] },
+    { name: 'public', type: 'folder', items: ['favicon.ico', 'vercel.svg'] },
+    { name: 'styles', type: 'folder', items: ['Home.module.css'] },
+    { name: 'tests', type: 'folder', items: ['e2e/', 'unit/'] },
+  ],
+  issues: [
+    {
+      id: 'issue-1',
+      title: 'Hardcoded API Key detected',
+      file: '/config/database.ts',
+      line: 12,
+      category: 'Security',
+      severity: 'High',
+      applied: false,
+      problem: 'API key is hardcoded in the source code. This can lead to security breaches if the repository is exposed.',
+      whyItMatters: 'Sensitive credentials may be leaked, allowing unauthorized access to your services.',
+      suggestedFix: 'Use environment variables to store sensitive information.',
+      originalCode: `const apiKey = "sk_live_1234567890";\nconst db = new Database(apiKey);`,
+      improvedCode: `const apiKey = process.env.API_KEY;\nif (!apiKey) {\n  throw new Error("API_KEY not found");\n}\nconst db = new Database(apiKey);`
+    },
+    {
+      id: 'issue-2',
+      title: 'Inefficient loop structure',
+      file: '/lib/dataProcessor.js',
+      line: 45,
+      category: 'Performance',
+      severity: 'Medium',
+      applied: false,
+      problem: 'Nested O(N^2) loop detected during array transformation.',
+      whyItMatters: 'Can lead to high CPU usage and degraded response times with large datasets.',
+      suggestedFix: 'Replace inner loop lookup with a Hash Map or Map set for O(N) linear performance.',
+      originalCode: `for (let i=0; i<items.length; i++) {\n  const found = list.find(x => x.id === items[i].id);\n}`,
+      improvedCode: `const map = new Map(list.map(x => [x.id, x]));\nfor (const item of items) {\n  const found = map.get(item.id);\n}`
+    },
+    {
+      id: 'issue-3',
+      title: 'Missing error handling',
+      file: '/api/users.ts',
+      line: 23,
+      category: 'Reliability',
+      severity: 'Medium',
+      applied: false,
+      problem: 'Asynchronous fetch call lacks try/catch or status check.',
+      whyItMatters: 'Unhandled rejections cause server crashes and 500 error responses.',
+      suggestedFix: 'Wrap in try/catch block and handle non-200 responses gracefully.',
+      originalCode: `const res = await fetch(url);\nconst data = await res.json();`,
+      improvedCode: `try {\n  const res = await fetch(url);\n  if (!res.ok) throw new Error("HTTP error " + res.status);\n  const data = await res.json();\n} catch (err) {\n  console.error("Fetch failed", err);\n}`
+    },
+    {
+      id: 'issue-4',
+      title: 'Unused variable',
+      file: '/components/Header.tsx',
+      line: 17,
+      category: 'Code Quality',
+      severity: 'Low',
+      applied: false,
+      problem: 'Variable "activeUser" declared but never read.',
+      whyItMatters: 'Clutters code readability and increases bundle size slightly.',
+      suggestedFix: 'Remove the unused declaration.',
+      originalCode: `const activeUser = useUser();\nreturn <header>Header</header>;`,
+      improvedCode: `return <header>Header</header>;`
+    },
+    {
+      id: 'issue-5',
+      title: 'Pickle deserialization detected',
+      file: '/app/utils.py',
+      line: 28,
+      category: 'Security',
+      type: 'Injection',
+      severity: 'High',
+      applied: false,
+      problem: 'Insecure deserialization using Python pickle module.',
+      whyItMatters: 'Allows arbitrary remote code execution (RCE) on the server.',
+      suggestedFix: 'Use standard JSON or safer serialization formats.',
+      originalCode: `import pickle\ndata = pickle.loads(user_input)`,
+      improvedCode: `import json\ndata = json.loads(user_input)`
+    }
+  ],
+  securityScan: {
+    counts: { high: 3, medium: 5, low: 2, total: 10 },
+    tools: [
+      { name: 'Bandit (Python Security)', count: 3 },
+      { name: 'Ruff (SAST)', count: 5 },
+      { name: 'Dependency Check', count: 2 },
+      { name: 'Secret Detection', count: 1 },
+    ],
+    findings: [
+      { severity: 'High', title: 'Pickle deserialization detected', file: '/app/utils.py', line: 28, tag: 'Injection' },
+      { severity: 'High', title: 'Hardcoded API Key detected', file: '/config/database.ts', line: 12, tag: 'Secret Leak' },
+      { severity: 'High', title: 'SQL Injection via string interpolation', file: '/db/queries.py', line: 89, tag: 'SQLi' },
+      { severity: 'Medium', title: 'Outdated package lodash (v4.17.15)', file: 'package.json', line: 42, tag: 'Vulnerability' },
+      { severity: 'Medium', title: 'XSS vulnerability in dangerouslySetInnerHTML', file: '/components/Article.tsx', line: 64, tag: 'XSS' },
+    ]
+  },
+  aiRecommendations: [
+    'Use environment variables for sensitive data.',
+    'Add error handling for API requests.',
+    'Improve test coverage (current: 76%).',
+    'Consider using TypeScript strict mode.'
+  ],
+  techStack: [
+    { name: 'Python', icon: 'py', color: 'from-blue-500 to-yellow-500' },
+    { name: 'FastAPI', icon: 'fastapi', color: 'from-teal-500 to-emerald-500' },
+    { name: 'HTML5', icon: 'html', color: 'from-orange-500 to-amber-500' },
+    { name: 'CSS3', icon: 'css', color: 'from-blue-600 to-indigo-500' },
+    { name: 'JavaScript', icon: 'js', color: 'from-yellow-400 to-amber-500' },
+    { name: 'PostgreSQL', icon: 'pg', color: 'from-blue-700 to-cyan-600' }
+  ]
+};
