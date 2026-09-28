@@ -162,6 +162,5 @@ Contributions, issues, and feature requests are always welcome! Feel free to ope
 Distributed under the **MIT License**. See `LICENSE` for more information.
 
 <div align="center">
-  <p>Crafted with ❤️ by Anjali Thakur Prerna, Yamini, Mitali, , Kasis for advanced software code intelligence.</p>
- <p> Team Members ("Semicolon Ke Sipahi")Anjali (Leader)   Yamini   Mitali   Prerna   Kasis </p>
+<p>Crafted with ❤️ by Anjali Thakur Prerna, Yamini, Mitali, , Kasis for advanced software code intelligence.</p>
 </div>
