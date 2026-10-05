@@ -5,13 +5,19 @@ import confetti from 'canvas-confetti';
 export default function FixSuggestionView({ issue, onBack, onApplyFix }) {
   const [copied, setCopied] = useState(false);
   const [applied, setApplied] = useState(issue?.applied || false);
+  const [copyError, setCopyError] = useState('');
 
   if (!issue) return null;
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(issue.improvedCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(issue.improvedCode || '');
+      setCopied(true);
+      setCopyError('');
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopyError('Clipboard access was blocked. Select and copy the suggested code below.');
+    }
   };
 
   const handleApply = () => {
@@ -104,6 +110,8 @@ export default function FixSuggestionView({ issue, onBack, onApplyFix }) {
               <span>{copied ? 'Copied' : 'Copy Code'}</span>
             </button>
           </div>
+          <p role="note" className="text-[11px] leading-relaxed text-slate-500">Apply Fix records the suggestion as applied in this review. It does not edit the remote GitHub repository; copy the suggested code below to make that change.</p>
+          {copyError && <p role="alert" className="text-[11px] text-rose-300">{copyError}</p>}
         </div>
 
         {/* Right Side: Code Comparison (Side-by-side / split code diff matching Screen 5) */}

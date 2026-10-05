@@ -1,7 +1,4 @@
-"""
-AI GitHub Project Reviewer - Real GitHub API, Python AST Analyzer & Real Gemini AI Reviewer
-Powered by Python 3.11, urllib.request, regex security engine, and Google Gemini AI API.
-"""
+"""CodeLens API server with GitHub repository analysis and optional Gemini assistance."""
 
 import http.server
 import socketserver
@@ -10,9 +7,38 @@ import re
 import os
 import urllib.request
 import urllib.error
+import subprocess
+import sqlite3
+from http.cookies import SimpleCookie
+from urllib.parse import urlparse
 
 PORT = 8000
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+FRONTEND_DIR = os.path.join(PROJECT_DIR, "dist")
+
+
+def load_local_env_file():
+    """Read simple KEY=value entries without replacing environment settings."""
+    env_path = os.path.join(PROJECT_DIR, ".env")
+    try:
+        with open(env_path, "r", encoding="utf-8") as env_file:
+            for line in env_file:
+                stripped = line.strip()
+                if not stripped or stripped.startswith("#") or "=" not in stripped:
+                    continue
+                key, value = stripped.split("=", 1)
+                key = key.strip()
+                value = value.strip().strip("\"'")
+                if key and key not in os.environ:
+                    os.environ[key] = value
+    except FileNotFoundError:
+        pass
+
+
+load_local_env_file()
+PORT = int(os.getenv("PORT", str(PORT)))
+
+import database
 
 # Gemini API Key configuration via Environment Variable
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or ""
@@ -41,10 +67,20 @@ MAX_SCANNABLE_FILES = 25
 
 def parse_github_url(url):
     """Extract owner and repo from GitHub URL string"""
-    clean_url = url.strip().rstrip('/')
-    match = re.search(r'github\.com/([^/]+)/([^/]+)', clean_url)
-    if match:
-        return match.group(1), match.group(2).replace('.git', '')
+    try:
+        parsed = urlparse(str(url).strip())
+        if parsed.scheme != "https" or parsed.hostname not in {"github.com", "www.github.com"}:
+            return None, None
+        parts = [part for part in parsed.path.strip("/").split("/") if part]
+        if len(parts) != 2:
+            return None, None
+        owner, repo = parts
+        if repo.endswith(".git"):
+            repo = repo[:-4]
+        if re.fullmatch(r"[A-Za-z0-9-]+", owner) and re.fullmatch(r"[A-Za-z0-9_.-]+", repo):
+            return owner, repo
+    except (TypeError, ValueError):
+        pass
     return None, None
 
 def fetch_json(url):
@@ -214,15 +250,19 @@ def query_gemini_ai(repo_context, user_prompt):
                 f"🔒 Never commit real secrets to GitHub!"
             )
 
-        issues_summary = "\n".join([f"- [{i.get('severity')}] {i.get('title')} in {i.get('file')}:{i.get('line')}" for i in repo_context.get('issues', [])])
+        issues = repo_context.get('issues') or []
+        issues_summary = "\n".join([f"- [{i.get('severity')}] {i.get('title')} in {i.get('file')}:{i.get('line')}" for i in issues])
+        top_issue = (f"The highest priority finding is '{issues[0].get('title', 'review finding')}' in "
+                     f"'{issues[0].get('file', 'a scanned file')}'.") if issues else (
+                         "No issues were flagged by the built-in source-pattern checks in the scanned files.")
         return (
             f"🤖 [AI Code Reviewer - Context Analysis for {repo_context.get('name', 'Repository')}]\n\n"
-            f"Based on Python AST scanning of {repo_context.get('name')} (Health Score: {repo_context.get('healthScore')}/100):\n"
+            f"Based on built-in source-pattern checks of {repo_context.get('name')} (estimated Health Score: {repo_context.get('healthScore')}/100):\n"
             f"• Primary Language: {repo_context.get('primaryLanguage')}\n"
             f"• Total Files Scanned: {repo_context.get('scanStats', {}).get('scanned', 25)} files\n\n"
             f"Detected Security & Quality Issues:\n{issues_summary}\n\n"
             f"Answer to your question ({user_prompt}):\n"
-            f"The repository requires immediate attention for '{repo_context.get('issues', [{}])[0].get('title', 'Security Risk')}' in '{repo_context.get('issues', [{}])[0].get('file', 'config')}'. Applying process.env or secret manager fixes will elevate health score above 90+.\n\n"
+            f"{top_issue} Scores are heuristic estimates and do not replace a full audit.\n\n"
             f"💡 Note: Set GEMINI_API_KEY environment variable to enable direct Google Gemini 2.5 Flash LLM answers!"
         )
 
@@ -506,6 +546,7 @@ def analyze_real_github_repo(owner, repo):
         ]
 
     files_scanned_count = 0
+    lines_scanned_count = 0
     detected_issues = []
 
     for idx, candidate in enumerate(scannable_candidates):
@@ -518,65 +559,21 @@ def analyze_real_github_repo(owner, repo):
         files_scanned_count += 1
 
         if code_text:
+            lines_scanned_count += len(code_text.splitlines())
             file_issues = scan_code_file(candidate["path"], code_text)
             detected_issues.extend(file_issues)
 
-    if not detected_issues:
-        detected_issues = [
-            {
-                "id": "issue-sec-1",
-                "title": "Hardcoded API Key risk in database config",
-                "file": "/config/database.ts",
-                "line": 12,
-                "category": "Security",
-                "severity": "High",
-                "tag": "Secret Leak",
-                "applied": False,
-                "problem": "Credentials or API tokens should not be checked into repository source files.",
-                "whyItMatters": "Prevents accidental API key leakage during public repository access.",
-                "suggestedFix": "Store sensitive keys in process.env or secret manager.",
-                "originalCode": 'const apiKey = "sk_live_1234567890";',
-                "improvedCode": 'const apiKey = process.env.API_KEY;\nif (!apiKey) throw new Error("API_KEY missing");'
-            },
-            {
-                "id": "issue-sec-2",
-                "title": "Insecure deserialization warning",
-                "file": "/app/utils.py",
-                "line": 28,
-                "category": "Security",
-                "severity": "High",
-                "tag": "Injection",
-                "applied": False,
-                "problem": "Unsafe deserialization detected in Python helper utility.",
-                "whyItMatters": "Untrusted input deserialization can trigger remote code execution (RCE).",
-                "suggestedFix": "Use json.loads instead of pickle.loads.",
-                "originalCode": "import pickle\ndata = pickle.loads(user_input)",
-                "improvedCode": "import json\ndata = json.loads(user_input)"
-            },
-            {
-                "id": "issue-perf-1",
-                "title": "Inefficient loop structure",
-                "file": "/lib/dataProcessor.js",
-                "line": 45,
-                "category": "Performance",
-                "severity": "Medium",
-                "tag": "Optimization",
-                "applied": False,
-                "problem": "Nested O(N^2) array lookup detected.",
-                "whyItMatters": "Degrades response time with large data inputs.",
-                "suggestedFix": "Use Map indexed lookup.",
-                "originalCode": "for (let i=0; i<items.length; i++) { list.find(x => x.id === items[i].id); }",
-                "improvedCode": "const map = new Map(list.map(x => [x.id, x]));"
-            }
-        ]
-
+    security_issues = [issue for issue in detected_issues if issue.get('category') == 'Security']
     high_count = sum(1 for i in detected_issues if i['severity'] == 'High')
     med_count = sum(1 for i in detected_issues if i['severity'] == 'Medium')
     low_count = sum(1 for i in detected_issues if i['severity'] == 'Low')
+    security_high = sum(1 for i in security_issues if i['severity'] == 'High')
+    security_medium = sum(1 for i in security_issues if i['severity'] == 'Medium')
+    security_low = sum(1 for i in security_issues if i['severity'] == 'Low')
     perf_count = sum(1 for i in detected_issues if i['category'] == 'Performance')
     total_issues = len(detected_issues)
 
-    security_score = max(20, min(100, 100 - (high_count * 15) - (med_count * 6) - (low_count * 2)))
+    security_score = max(20, min(100, 100 - (security_high * 15) - (security_medium * 6) - (security_low * 2)))
     quality_score = max(30, min(100, 100 - (total_issues * 3)))
     performance_score = max(40, min(100, 100 - (med_count * 5) - (perf_count * 8)))
     maintainability_score = max(50, min(98, 95 - (total_issues * 2)))
@@ -593,15 +590,16 @@ def analyze_real_github_repo(owner, repo):
     total_skipped_count = sum(skipped_summary.values())
 
     return {
+        "isSample": False,
         "name": repo_data.get('name', repo),
         "url": repo_data.get('html_url', f"https://github.com/{owner}/{repo}"),
-        "description": repo_data.get('description') or f"Recursive AST security analysis for {owner}/{repo}.",
+        "description": repo_data.get('description') or f"Built-in source-pattern review for {owner}/{repo}.",
         "stars": f"{repo_data.get('stargazers_count', 0):,}",
         "forks": f"{repo_data.get('forks_count', 0):,}",
         "updated": "Recently updated",
         "primaryLanguage": repo_data.get('language') or (languages_list[0]['name'] if languages_list else 'TypeScript'),
         "totalFiles": f"{total_files_discovered:,}",
-        "linesOfCode": f"{(repo_data.get('size', 1000) * 15):,}",
+        "linesOfCode": f"{lines_scanned_count:,}",
         "healthScore": overall_health,
         "scoreBreakdown": {
             "codeQuality": quality_score,
@@ -616,6 +614,7 @@ def analyze_real_github_repo(owner, repo):
         "scanStats": {
             "discovered": total_files_discovered,
             "scanned": files_scanned_count,
+            "linesScanned": lines_scanned_count,
             "issuesFound": len(detected_issues),
             "skippedTotal": total_skipped_count,
             "skippedSummary": skipped_summary,
@@ -623,26 +622,22 @@ def analyze_real_github_repo(owner, repo):
         },
         "securityScan": {
             "counts": {
-                "high": high_count,
-                "medium": med_count,
-                "low": low_count,
-                "total": len(detected_issues)
+                "high": security_high,
+                "medium": security_medium,
+                "low": security_low,
+                "total": len(security_issues)
             },
             "tools": [
-                {"name": "Bandit (Python Security)", "count": max(1, high_count)},
-                {"name": "Ruff (SAST)", "count": max(2, len(detected_issues))},
-                {"name": "Dependency Check", "count": 2},
-                {"name": "Secret Detection", "count": high_count}
+                {"name": "Built-in source-pattern checks", "count": len(detected_issues)},
+                {"name": "Repository files examined", "count": files_scanned_count}
             ],
-            "findings": security_findings if security_findings else [
-                {"severity": "High", "title": "Hardcoded API Key risk in database config", "file": "/config/database.ts", "line": 12, "tag": "Secret Leak"}
-            ]
+            "findings": security_findings
         },
         "aiRecommendations": [
             f"Use environment variables for secrets in {repo}.",
             "Add error handling and try/catch blocks for API fetch calls.",
             "Improve test coverage across core components.",
-            f"Run automated Python Bandit & Ruff linters for {repo_data.get('language', 'code')} codebase."
+            "Use language-specific static analysis tools for deeper checks beyond these built-in pattern rules."
         ]
     }
 
@@ -652,9 +647,10 @@ def get_default_repo_analysis():
     global _DEFAULT_REPO_CACHE
     if _DEFAULT_REPO_CACHE is None:
         _DEFAULT_REPO_CACHE = {
+            "isSample": True,
             "name": "next.js",
             "url": "https://github.com/vercel/next.js",
-            "description": "The React Framework for the Web",
+            "description": "Sample dashboard data. Analyze a public GitHub repository to load a live scan.",
             "stars": "124k",
             "forks": "26k",
             "primaryLanguage": "TypeScript",
@@ -662,7 +658,7 @@ def get_default_repo_analysis():
             "scoreBreakdown": {"codeQuality": 91, "security": 64, "performance": 87, "maintainability": 89, "testing": 80},
             "totalFiles": 32040,
             "linesOfCode": "450,200",
-            "updated": "2 hours ago",
+            "updated": "Sample data",
             "languages": [{"name": "TypeScript", "percentage": 88.5}, {"name": "JavaScript", "percentage": 9.2}, {"name": "Rust", "percentage": 2.3}],
             "structure": [{"name": "packages", "type": "dir", "items": ["next", "create-next-app", "font"]}, {"name": "test", "type": "dir", "items": ["e2e", "integration", "unit"]}],
             "issues": [
@@ -683,8 +679,8 @@ def get_default_repo_analysis():
                     "improvedCode": "const STRIPE_KEY = process.env.STRIPE_KEY;"
                 }
             ],
-            "securityScan": {"counts": {"high": 1, "medium": 1, "low": 0}, "findings": [{"severity": "High", "title": "Hardcoded API Key", "file": "packages/next/src/client/config.ts", "line": 14}]},
-            "scanStats": {"discovered": 32040, "scanned": 25, "issuesFound": 3, "skippedTotal": 32015},
+            "securityScan": {"counts": {"high": 1, "medium": 0, "low": 0, "total": 1}, "tools": [{"name": "Sample pattern checks", "count": 1}], "findings": [{"severity": "High", "title": "Hardcoded API Key", "file": "packages/next/src/client/config.ts", "line": 14, "tag": "Secret Leak"}]},
+            "scanStats": {"discovered": 32040, "scanned": 25, "issuesFound": 1, "skippedTotal": 32015},
             "aiRecommendations": ["Migrate hardcoded credentials to environment variables", "Add .env to .gitignore"]
         }
     return _DEFAULT_REPO_CACHE
@@ -693,9 +689,25 @@ class PythonBackendHandler(http.server.SimpleHTTPRequestHandler):
     """Custom HTTP Request Handler serving static frontend & Real Python API endpoints"""
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=PROJECT_DIR, **kwargs)
+        super().__init__(*args, directory=FRONTEND_DIR, **kwargs)
 
     def do_GET(self):
+        if self.path == "/" or self.path.startswith("/?"):
+            self.path = "/index.html"
+        if self.path == "/api/auth/me":
+            user = self._current_user()
+            self._send_json({"user": user}, 200 if user else 401)
+            return
+        if self.path == "/api/analysis-history":
+            user = self._current_user()
+            if not user:
+                self._send_json({"error": "Please log in to view saved analyses."}, 401)
+                return
+            self._send_json({"analyses": database.list_analyses(user["id"])})
+            return
+        if self.path == "/api/health":
+            self._send_json({"ok": True, "aiConfigured": bool(os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or GEMINI_API_KEY)})
+            return
         # API Endpoint: /api/analysis (Instant Cached Load)
         if self.path.startswith('/api/analysis'):
             try:
@@ -720,6 +732,55 @@ class PythonBackendHandler(http.server.SimpleHTTPRequestHandler):
         super().do_GET()
 
     def do_POST(self):
+        if self.path == '/api/auth/register':
+            try:
+                payload = self._read_json()
+                name = str(payload.get('name', '')).strip()
+                email = str(payload.get('email', '')).strip().lower()
+                password = str(payload.get('password', ''))
+                if not name:
+                    return self._send_json({"error": "Please enter your name."}, 400)
+                if len(name) > 100:
+                    return self._send_json({"error": "Name must be 100 characters or fewer."}, 400)
+                if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
+                    return self._send_json({"error": "Enter a valid email address."}, 400)
+                if len(password) < 8:
+                    return self._send_json({"error": "Password must be at least 8 characters."}, 400)
+                user = database.create_user(name, email, password)
+                token = database.create_session(user["id"])
+                self._send_json({"user": user}, headers={"Set-Cookie": self._session_cookie(token)})
+            except sqlite3.IntegrityError:
+                self._send_json({"error": "An account with this email already exists. Please log in."}, 409)
+            except (ValueError, json.JSONDecodeError):
+                self._send_json({"error": "Invalid request data."}, 400)
+            except Exception as exc:
+                self._send_json({"error": f"Could not create account: {str(exc)}"}, 500)
+            return
+
+        if self.path == '/api/auth/login':
+            try:
+                payload = self._read_json()
+                email = str(payload.get('email', '')).strip()
+                password = str(payload.get('password', ''))
+                if not email or not password:
+                    return self._send_json({"error": "Enter your email and password."}, 400)
+                user = database.authenticate_user(email, password)
+                if not user:
+                    return self._send_json({"error": "Email or password is incorrect."}, 401)
+                token = database.create_session(user["id"])
+                self._send_json({"user": user}, headers={"Set-Cookie": self._session_cookie(token)})
+            except (ValueError, json.JSONDecodeError):
+                self._send_json({"error": "Invalid request data."}, 400)
+            return
+
+        if self.path == '/api/auth/logout':
+            cookie = SimpleCookie(self.headers.get("Cookie", ""))
+            token = cookie.get("codelens_session")
+            database.delete_session(token.value if token else None)
+            secure = "; Secure" if os.getenv("CODELENS_COOKIE_SECURE", "").lower() in {"1", "true", "yes"} else ""
+            self._send_json({"ok": True}, headers={"Set-Cookie": f"codelens_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0{secure}"})
+            return
+
         # API Endpoint: /api/analyze-repo
         if self.path == '/api/analyze-repo':
             content_length = int(self.headers.get('Content-Length', 0))
@@ -738,11 +799,10 @@ class PythonBackendHandler(http.server.SimpleHTTPRequestHandler):
 
                 real_analysis = analyze_real_github_repo(owner, repo)
 
-                self.send_response(200)
-                self.send_header('Content-Type', 'application/json')
-                self.send_header('Access-Control-Allow-Origin', '*')
-                self.end_headers()
-                self.wfile.write(json.dumps(real_analysis).encode('utf-8'))
+                session_user = self._current_user()
+                real_analysis["analysisId"] = database.save_analysis(session_user["id"] if session_user else None, real_analysis)
+
+                self._send_json(real_analysis)
 
             except urllib.error.HTTPError as e:
                 self.send_response(e.code)
@@ -791,11 +851,70 @@ class PythonBackendHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(json.dumps({"response": f"Error processing AI query: {str(e)}"}).encode('utf-8'))
             return
 
+    def _read_json(self):
+        content_length = int(self.headers.get('Content-Length', 0))
+        if content_length > 1_000_000:
+            raise ValueError("Request body is too large.")
+        body = self.rfile.read(content_length).decode('utf-8') if content_length else '{}'
+        payload = json.loads(body)
+        if not isinstance(payload, dict):
+            raise ValueError("Expected a JSON object.")
+        return payload
+
+    def _send_json(self, payload, status=200, headers=None):
+        body = json.dumps(payload).encode('utf-8')
+        self.send_response(status)
+        self.send_header('Content-Type', 'application/json; charset=utf-8')
+        self.send_header('Content-Length', str(len(body)))
+        self.send_header('Cache-Control', 'no-store')
+        self.send_header('X-Content-Type-Options', 'nosniff')
+        for name, value in (headers or {}).items():
+            self.send_header(name, value)
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _session_cookie(self, token):
+        secure = "; Secure" if os.getenv("CODELENS_COOKIE_SECURE", "").lower() in {"1", "true", "yes"} else ""
+        return f"codelens_session={token}; Path=/; HttpOnly; SameSite=Lax; Max-Age={database.SESSION_TTL_SECONDS}{secure}"
+
+    def _current_user(self):
+        cookie = SimpleCookie(self.headers.get("Cookie", ""))
+        token = cookie.get("codelens_session")
+        return database.get_session_user(token.value if token else None)
+
+
 def run_server():
+    # Build the React bundle on first run and whenever its inputs have changed.
+    built_index = os.path.join(FRONTEND_DIR, "index.html")
+    build_inputs = [os.path.join(PROJECT_DIR, name) for name in
+                    ("package.json", "vite.config.js", "tailwind.config.js", "postcss.config.js", "index.html")]
+    for source_root in (os.path.join(PROJECT_DIR, "src"), os.path.join(PROJECT_DIR, "public")):
+        if os.path.isdir(source_root):
+            for root, _, files in os.walk(source_root):
+                build_inputs.extend(os.path.join(root, name) for name in files)
+    latest_source = max((os.path.getmtime(path) for path in build_inputs if os.path.isfile(path)), default=0)
+    build_needed = not os.path.isfile(built_index) or latest_source > os.path.getmtime(built_index)
+    if build_needed:
+        try:
+            subprocess.run("npm run build", cwd=PROJECT_DIR, check=True, shell=True)
+        except FileNotFoundError as exc:
+            raise RuntimeError("Node.js and npm are required. Install Node.js, run `npm install`, then run `python app.py` again.") from exc
+        except subprocess.CalledProcessError as exc:
+            raise RuntimeError("Could not build the React frontend. Run `npm install` and `npm run build` to see the build error.") from exc
+
     print(f"Python Backend Server starting on http://localhost:{PORT}")
-    print(f"Serving directory: {PROJECT_DIR}")
-    with socketserver.TCPServer(("", PORT), PythonBackendHandler) as httpd:
+    print(f"Serving React build: {FRONTEND_DIR}")
+    database.initialize_database()
+    class ReusableThreadingServer(socketserver.ThreadingTCPServer):
+        allow_reuse_address = True
+        daemon_threads = True
+
+    with ReusableThreadingServer(("", PORT), PythonBackendHandler) as httpd:
         httpd.serve_forever()
 
 if __name__ == "__main__":
-    run_server()
+    try:
+        run_server()
+    except RuntimeError as error:
+        print(f"Startup error: {error}")
+        raise SystemExit(1)

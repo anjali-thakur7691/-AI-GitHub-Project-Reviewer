@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Search, Github, User, ArrowRight, Sparkles } from 'lucide-react';
+import { Github, User, ArrowRight, Sparkles, LogOut } from 'lucide-react';
 
-export default function Navbar({ currentView, setCurrentView, repoUrl, setRepoUrl, onAnalyze }) {
+export default function Navbar({ currentView, setCurrentView, repoUrl, setRepoUrl, onAnalyze, isAnalyzing = false, analysisError = '', user, onLogout }) {
   const [inputUrl, setInputUrl] = useState(repoUrl || 'https://github.com/vercel/next.js');
 
   const handleSubmit = (e) => {
@@ -28,10 +28,11 @@ export default function Navbar({ currentView, setCurrentView, repoUrl, setRepoUr
         </div>
         <button
           type="submit"
-          className="bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs px-4 py-2 rounded-lg transition-all shadow-sm flex items-center gap-1.5 shrink-0"
+          disabled={isAnalyzing}
+          className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white font-medium text-xs px-4 py-2 rounded-lg transition-all shadow-sm flex items-center gap-1.5 shrink-0"
         >
-          <span>Analyze</span>
-          <ArrowRight className="w-3.5 h-3.5" />
+          <span>{isAnalyzing ? 'Analyzing…' : 'Analyze'}</span>
+          {!isAnalyzing && <ArrowRight className="w-3.5 h-3.5" />}
         </button>
       </form>
 
@@ -50,14 +51,15 @@ export default function Navbar({ currentView, setCurrentView, repoUrl, setRepoUr
           <Sparkles className="w-3 h-3 text-indigo-400" />
           <span>Tech Stack</span>
         </button>
-        <button 
-          onClick={() => setCurrentView('auth')}
+        <button
+          onClick={user ? onLogout : () => setCurrentView('auth')}
           className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5"
         >
-          <User className="w-3.5 h-3.5 text-indigo-400" />
-          <span>Account</span>
+          {user ? <LogOut className="w-3.5 h-3.5 text-indigo-400" /> : <User className="w-3.5 h-3.5 text-indigo-400" />}
+          <span>{user ? `Logout (${user.name})` : 'Account'}</span>
         </button>
       </div>
+      {analysisError && <div role="alert" className="absolute top-full left-6 right-6 mt-2 rounded-lg border border-rose-500/30 bg-rose-950 px-4 py-2 text-xs text-rose-300 shadow-lg">{analysisError}</div>}
     </header>
   );
 }

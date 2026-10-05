@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
   Github, 
   Star, 
@@ -10,18 +10,95 @@ import {
   ShieldAlert, 
   CheckCircle, 
   Activity,
-  ArrowRight
+  ArrowRight,
+  VolumeX,
+  Mic,
+  MicOff
 } from 'lucide-react';
 import HealthGauge from '../components/HealthGauge';
+import { sendAssistantMessage } from '../api';
 
-export default function DashboardView({ repoData, setCurrentView }) {
+export default function DashboardView({ repoData, setCurrentView, analysisHistory = [], onRestoreAnalysis }) {
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [isAsking, setIsAsking] = useState(false);
+  const [voiceMessage, setVoiceMessage] = useState('');
+  const recognitionRef = useRef(null);
+
+  useEffect(() => () => {
+    recognitionRef.current?.stop();
+    window.speechSynthesis?.cancel();
+  }, []);
+
+  const askAssistantByVoice = async (question) => {
+    setIsAsking(true);
+    setVoiceMessage(`You asked: “${question}” — getting an answer about ${repoData.name}…`);
+    try {
+      const result = await sendAssistantMessage({ url: repoData.url, context: repoData, message: question });
+      const answer = result.response || 'I could not get an answer for that question.';
+      setVoiceMessage(`Assistant: ${answer}`);
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(answer);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.95;
+        utterance.onstart = () => setIsSpeaking(true);
+        utterance.onend = () => setIsSpeaking(false);
+        utterance.onerror = () => setIsSpeaking(false);
+        window.speechSynthesis.speak(utterance);
+      }
+    } catch (error) {
+      setVoiceMessage(`Assistant request failed: ${error.message}`);
+    } finally {
+      setIsAsking(false);
+    }
+  };
+
+  const toggleVoiceAssistant = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Recognition) {
+      setVoiceMessage('Voice input is not supported in this browser. Try Chrome or Edge.');
+      return;
+    }
+    if (!('speechSynthesis' in window)) {
+      setVoiceMessage('Voice playback is not supported in this browser. Try Chrome or Edge.');
+      return;
+    }
+    const recognition = new Recognition();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.onstart = () => { setIsListening(true); setVoiceMessage('Listening… Ask what problems were found or how to fix them.'); };
+    recognition.onresult = (event) => {
+      const question = event.results?.[0]?.[0]?.transcript?.trim();
+      setIsListening(false);
+      if (question) askAssistantByVoice(question);
+      else setVoiceMessage('I did not catch that. Press the microphone and try again.');
+    };
+    recognition.onerror = (event) => {
+      setIsListening(false);
+      setVoiceMessage(event.error === 'not-allowed' ? 'Microphone permission is blocked. Allow microphone access in your browser.' : 'Could not hear that. Check your microphone and try again.');
+    };
+    recognition.onend = () => setIsListening(false);
+    recognitionRef.current = recognition;
+    setVoiceMessage('Starting microphone…');
+    try { recognition.start(); }
+    catch { setIsListening(false); setVoiceMessage('Microphone could not start. Please try again.'); }
+  };
+
   return (
     <div className="p-8 space-y-8 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white tracking-tight">Repository Analysis</h1>
-          <p className="text-xs text-slate-400 mt-1">Real-time health breakdown and code structure insights.</p>
+          <p className="text-xs text-slate-400 mt-1">Repository health estimates and code structure insights.</p>
+          {repoData.isSample && <p className="mt-2 inline-flex rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-300">Sample dashboard data — analyze a repository for live results</p>}
         </div>
 
         <button 
@@ -32,6 +109,21 @@ export default function DashboardView({ repoData, setCurrentView }) {
           <ArrowRight className="w-3.5 h-3.5" />
         </button>
       </div>
+
+      <section className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-indigo-500/30 bg-indigo-950/30 p-5">
+        <div>
+          <h2 className="text-sm font-bold text-white">Voice AI assistant</h2>
+          <p className="mt-1 text-xs text-slate-400">Ask aloud about problems in this scan; the assistant answers using this repository’s findings.</p>
+          {voiceMessage && <p aria-live="polite" className="mt-2 text-xs text-indigo-300">{voiceMessage}</p>}
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <button type="button" onClick={toggleVoiceAssistant} disabled={isAsking} className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-indigo-500 disabled:opacity-50">
+            {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            {isListening ? 'Stop listening' : 'Ask by voice'}
+          </button>
+          {isSpeaking && <button type="button" onClick={() => { window.speechSynthesis.cancel(); setIsSpeaking(false); }} className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2.5 text-xs font-semibold text-slate-200 hover:bg-slate-800"><VolumeX className="h-4 w-4" />Stop reply</button>}
+        </div>
+      </section>
 
       {/* Main Grid: Repo Info & File Structure */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -216,11 +308,33 @@ export default function DashboardView({ repoData, setCurrentView }) {
           </div>
 
           <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800/80 text-[11px] text-slate-400 flex items-center justify-between">
-            <span>Total Lines of Code:</span>
-            <span className="font-mono font-bold text-indigo-300">{repoData.linesOfCode}</span>
+            <span>{repoData.isSample ? 'Estimated Lines of Code:' : 'Lines in scanned files:'}</span>
+              <span className="font-mono font-bold text-indigo-300">{repoData.linesOfCode}</span>
           </div>
         </div>
       </div>
+
+      {analysisHistory.length > 0 && <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-sm font-bold text-white">Saved Repository Analyses</h2>
+            <p className="mt-1 text-xs text-slate-400">Your recent scans are stored in the local SQLite database.</p>
+          </div>
+          <span className="rounded-full bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-300">{analysisHistory.length} recent</span>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {analysisHistory.map(item => <button
+            key={item.id}
+            type="button"
+            onClick={() => onRestoreAnalysis?.(item.result)}
+            className="rounded-xl border border-slate-800 bg-slate-950/70 p-3 text-left transition-colors hover:border-indigo-500/60"
+          >
+            <span className="block truncate text-xs font-semibold text-slate-200">{item.name}</span>
+            <span className="mt-1 block truncate font-mono text-[10px] text-slate-500">{item.url}</span>
+            <span className="mt-2 block text-[10px] text-slate-400">{new Date(item.createdAt * 1000).toLocaleString()}</span>
+          </button>)}
+        </div>
+      </section>}
     </div>
   );
 }

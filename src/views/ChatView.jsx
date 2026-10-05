@@ -1,61 +1,53 @@
 import React, { useState } from 'react';
-import { Send, Bot, User, Sparkles, Code2, ShieldAlert } from 'lucide-react';
+import { Send, Bot, User, Sparkles } from 'lucide-react';
+import { sendAssistantMessage } from '../api';
 
 export default function ChatView({ repoData }) {
   const [messages, setMessages] = useState([
     {
-      id: 1,
-      sender: 'user',
-      text: 'What is the biggest security issue in this project?',
-      time: '2:45 PM'
-    },
-    {
-      id: 2,
       sender: 'ai',
-      text: `The biggest security issue in this project is the hardcoded API key found in /config/database.ts at line 12. This can lead to unauthorized access to your services if the code is exposed.\n\nOther important findings:\n1. 3 potential injection vulnerabilities.\n2. 2 outdated dependencies.\n3. 1 missing input validation.`,
-      time: '2:45 PM'
+      id: 1,
+      text: 'Ask me about this repository analysis. I will use the current scan context to answer.',
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ]);
 
   const [input, setInput] = useState('');
+  const [isSending, setIsSending] = useState(false);
 
-  const handleSend = (e) => {
+  const handleSend = async (e) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    const question = input.trim();
+    if (!question || isSending) return;
 
     const userMsg = {
       id: Date.now(),
       sender: 'user',
-      text: input,
+      text: question,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
     setMessages(prev => [...prev, userMsg]);
     setInput('');
-
-    // Generate intelligent AI response based on input query
-    setTimeout(() => {
-      let replyText = `I have analyzed ${repoData.name} regarding your query. `;
-      const query = input.toLowerCase();
-
-      if (query.includes('performance') || query.includes('slow')) {
-        replyText += `The main performance bottleneck detected is an inefficient O(N^2) loop in /lib/dataProcessor.js line 45. Replacing it with a Hash Map will improve execution time significantly.`;
-      } else if (query.includes('test') || query.includes('coverage')) {
-        replyText += `Current test coverage for ${repoData.name} is 76%. We recommend adding unit tests for the /api routes and component render states to hit 85%+.`;
-      } else if (query.includes('fix') || query.includes('solve')) {
-        replyText += `You can navigate to the "Code Review & Issues" tab in the sidebar, select any issue, and click "Apply Fix" to auto-refactor the code with environment variables or try/catch error handling.`;
-      } else {
-        replyText += `Repository overview: 1,248 files analyzed, Health Score is ${repoData.healthScore}/100. Overall code quality is high (91/100), but security requires attention due to hardcoded secrets.`;
-      }
-
-      const aiMsg = {
+    setIsSending(true);
+    try {
+      const result = await sendAssistantMessage({ url: repoData.url, context: repoData, message: question });
+      setMessages(prev => [...prev, {
         id: Date.now() + 1,
         sender: 'ai',
-        text: replyText,
+        text: result.response,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-      setMessages(prev => [...prev, aiMsg]);
-    }, 700);
+      }]);
+    } catch (error) {
+      setMessages(prev => [...prev, {
+        id: Date.now() + 1,
+        sender: 'ai',
+        text: `I couldn't reach the assistant service: ${error.message}`,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }]);
+    } finally {
+      setIsSending(false);
+    }
   };
 
   return (
@@ -119,9 +111,10 @@ export default function ChatView({ repoData }) {
           />
           <button
             type="submit"
-            className="bg-indigo-600 hover:bg-indigo-500 text-white p-2.5 rounded-lg transition-all shadow-md shadow-indigo-600/30 shrink-0"
+            disabled={isSending || !input.trim()}
+            className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white p-2.5 rounded-lg transition-all shadow-md shadow-indigo-600/30 shrink-0"
           >
-            <Send className="w-4 h-4" />
+            {isSending ? <span className="px-1 text-xs">…</span> : <Send className="w-4 h-4" />}
           </button>
         </div>
       </form>

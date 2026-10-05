@@ -1,4 +1,5 @@
 export const initialRepoData = {
+  isSample: true,
   name: 'next.js',
   url: 'https://github.com/vercel/next.js',
   description: 'The React Framework for the Web.',

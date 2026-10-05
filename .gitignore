@@ -1,0 +1,10 @@
+node_modules/
+dist/
+__pycache__/
+*.py[cod]
+codelens.sqlite3
+codelens.sqlite3-shm
+codelens.sqlite3-wal
+.env
+.env.*
+!.env.example

@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: codelens-ai
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    envVars:
+      - key: CODELENS_COOKIE_SECURE
+        value: "true"

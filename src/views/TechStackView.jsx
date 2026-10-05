@@ -20,7 +20,7 @@ export default function TechStackView({ setCurrentView }) {
             <Github className="w-6 h-6" />
           </div>
           <h3 className="text-sm font-bold text-white">Analyze GitHub Repository</h3>
-          <p className="text-xs text-slate-400">Deep structural AST parsing & metric extraction.</p>
+          <p className="text-xs text-slate-400">Reads public GitHub metadata and scans a bounded set of repository source files.</p>
         </div>
 
         <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl text-center space-y-3 hover:border-purple-500/50 transition-all shadow-xl">
@@ -28,15 +28,15 @@ export default function TechStackView({ setCurrentView }) {
             <Sparkles className="w-6 h-6" />
           </div>
           <h3 className="text-sm font-bold text-white">AI Review & Suggestions</h3>
-          <p className="text-xs text-slate-400">Contextual code reviews powered by LLM models.</p>
+          <p className="text-xs text-slate-400">Uses Gemini when configured, with a context-based fallback for local demos.</p>
         </div>
 
         <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl text-center space-y-3 hover:border-emerald-500/50 transition-all shadow-xl">
           <div className="w-12 h-12 rounded-xl bg-emerald-600/20 text-emerald-400 mx-auto flex items-center justify-center">
             <ShieldCheck className="w-6 h-6" />
           </div>
-          <h3 className="text-sm font-bold text-white">Fix Issues with AI</h3>
-          <p className="text-xs text-slate-400">One-click automated code refactoring & security fixes.</p>
+          <h3 className="text-sm font-bold text-white">Review Suggested Fixes</h3>
+          <p className="text-xs text-slate-400">Compare suggestions, copy code, and track the review status.</p>
         </div>
 
         <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl text-center space-y-3 hover:border-blue-500/50 transition-all shadow-xl">
@@ -44,7 +44,7 @@ export default function TechStackView({ setCurrentView }) {
             <FileText className="w-6 h-6" />
           </div>
           <h3 className="text-sm font-bold text-white">Generate Report in PDF</h3>
-          <p className="text-xs text-slate-400">Executive PDF security audits for compliance.</p>
+          <p className="text-xs text-slate-400">Export a PDF summary of the current repository analysis.</p>
         </div>
       </div>
 
@@ -52,30 +52,30 @@ export default function TechStackView({ setCurrentView }) {
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 space-y-6 shadow-2xl">
         <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Built With</h2>
 
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-center space-y-2">
-            <span className="text-3xl">🐍</span>
+            <span className="text-xl font-black text-indigo-300">PY</span>
             <h4 className="text-xs font-bold text-white">Python</h4>
           </div>
           <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-center space-y-2">
-            <span className="text-3xl">⚡</span>
-            <h4 className="text-xs font-bold text-white">FastAPI</h4>
+            <span className="text-xl font-black text-indigo-300">UI</span>
+            <h4 className="text-xs font-bold text-white">React + Vite</h4>
           </div>
           <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-center space-y-2">
-            <span className="text-3xl">🌐</span>
-            <h4 className="text-xs font-bold text-white">HTML5</h4>
+            <span className="text-xl font-black text-indigo-300">API</span>
+            <h4 className="text-xs font-bold text-white">Python HTTP API</h4>
           </div>
           <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-center space-y-2">
-            <span className="text-3xl">🎨</span>
-            <h4 className="text-xs font-bold text-white">CSS3</h4>
+            <span className="text-xl font-black text-indigo-300">DB</span>
+            <h4 className="text-xs font-bold text-white">SQLite</h4>
           </div>
           <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-center space-y-2">
-            <span className="text-3xl">📜</span>
-            <h4 className="text-xs font-bold text-white">JavaScript</h4>
+            <span className="text-xl font-black text-indigo-300">PDF</span>
+            <h4 className="text-xs font-bold text-white">jsPDF</h4>
           </div>
           <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-center space-y-2">
-            <span className="text-3xl">🐘</span>
-            <h4 className="text-xs font-bold text-white">PostgreSQL</h4>
+            <span className="text-xl font-black text-indigo-300">AI</span>
+            <h4 className="text-xs font-bold text-white">Gemini (optional)</h4>
           </div>
         </div>
       </div>

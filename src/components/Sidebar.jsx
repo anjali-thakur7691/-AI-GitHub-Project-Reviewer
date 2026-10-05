@@ -7,7 +7,8 @@ import {
   Settings, 
   ShieldAlert, 
   Sparkles,
-  ChevronRight
+  ChevronRight,
+  Bot
 } from 'lucide-react';
 
 export default function Sidebar({ currentView, setCurrentView, activeRepo }) {
@@ -30,7 +31,8 @@ export default function Sidebar({ currentView, setCurrentView, activeRepo }) {
           onClick={() => setCurrentView('landing')}
           className="p-4 flex items-center gap-3 cursor-pointer group hover:opacity-90 transition-all border-b border-slate-800/60"
         >
-          <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-lg shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform">
+          <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-[0px] shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform">
+            <Bot className="w-5 h-5 text-white" aria-hidden="true" />
             🧑‍💻
           </div>
           <div>

@@ -3,6 +3,9 @@ import { ShieldAlert, AlertOctagon, AlertTriangle, ShieldCheck, ChevronRight, Lo
 
 export default function SecurityView({ repoData, onSelectFinding }) {
   const { counts, tools, findings } = repoData.securityScan;
+  const highShare = counts.total ? (counts.high / counts.total) * 100 : 0;
+  const mediumShare = counts.total ? (counts.medium / counts.total) * 100 : 0;
+  const lowShare = counts.total ? (counts.low / counts.total) * 100 : 0;
 
   return (
     <div className="p-8 space-y-8 max-w-7xl mx-auto">
@@ -13,7 +16,8 @@ export default function SecurityView({ repoData, onSelectFinding }) {
         </div>
         <div>
           <h1 className="text-2xl font-bold text-white tracking-tight">Security Scan</h1>
-          <p className="text-xs text-slate-400 mt-0.5">Vulnerability detection across SAST, Secrets, Dependencies & AST engines.</p>
+          <p className="text-xs text-slate-400 mt-0.5">Built-in source-pattern checks for common secrets and risky code patterns.</p>
+          {repoData.isSample && <p className="mt-2 inline-flex rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-300">Sample findings — run a repository scan for live results</p>}
         </div>
       </div>
 
@@ -69,8 +73,8 @@ export default function SecurityView({ repoData, onSelectFinding }) {
                   <ShieldCheck className="w-4 h-4 text-indigo-400" />
                   <span className="font-semibold">{tool.name}</span>
                 </div>
-                <span className="bg-slate-800 text-rose-300 font-bold px-2.5 py-1 rounded-md text-[11px]">
-                  {tool.count} issues
+                <span className="bg-slate-800 text-indigo-300 font-bold px-2.5 py-1 rounded-md text-[11px]">
+                  {tool.count} {tool.name === 'Repository files examined' ? 'files' : 'matches'}
                 </span>
               </div>
             ))}
@@ -98,7 +102,7 @@ export default function SecurityView({ repoData, onSelectFinding }) {
                   fill="none"
                   stroke="#f43f5e"
                   strokeWidth="3.8"
-                  strokeDasharray="30, 100"
+                  strokeDasharray={`${highShare}, 100`}
                 />
                 {/* Medium (50%) */}
                 <path
@@ -106,8 +110,8 @@ export default function SecurityView({ repoData, onSelectFinding }) {
                   fill="none"
                   stroke="#f59e0b"
                   strokeWidth="3.8"
-                  strokeDasharray="50, 100"
-                  strokeDashoffset="-30"
+                  strokeDasharray={`${mediumShare}, 100`}
+                  strokeDashoffset={-highShare}
                 />
                 {/* Low (20%) */}
                 <path
@@ -115,8 +119,8 @@ export default function SecurityView({ repoData, onSelectFinding }) {
                   fill="none"
                   stroke="#3b82f6"
                   strokeWidth="3.8"
-                  strokeDasharray="20, 100"
-                  strokeDashoffset="-80"
+                  strokeDasharray={`${lowShare}, 100`}
+                  strokeDashoffset={-(highShare + mediumShare)}
                 />
               </svg>
               {/* Donut Center */}
@@ -150,10 +154,12 @@ export default function SecurityView({ repoData, onSelectFinding }) {
         <h2 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Security Findings</h2>
 
         <div className="space-y-3">
-          {findings.map((item, idx) => (
-            <div 
+          {findings.length === 0 ? <p className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-xs text-emerald-300">No security-pattern matches were found in the files scanned. This is a heuristic scan, so it does not replace a full security audit.</p> : findings.map((item, idx) => (
+            <button
               key={idx} 
-              className="p-4 rounded-xl bg-slate-950/80 hover:bg-slate-800/80 border border-slate-800 transition-colors flex items-center justify-between cursor-pointer group"
+              type="button"
+              onClick={() => onSelectFinding?.(item)}
+              className="w-full text-left p-4 rounded-xl bg-slate-950/80 hover:bg-slate-800/80 border border-slate-800 transition-colors flex items-center justify-between cursor-pointer group"
             >
               <div className="flex items-center gap-3">
                 <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded uppercase ${
@@ -173,7 +179,7 @@ export default function SecurityView({ repoData, onSelectFinding }) {
                 </span>
                 <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-white" />
               </div>
-            </div>
+            </button>
           ))}
         </div>
       </div>

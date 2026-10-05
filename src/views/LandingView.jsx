@@ -7,10 +7,11 @@ import {
   ArrowRight, 
   Github, 
   CheckCircle2,
-  Cpu
+  Cpu,
+  Bot
 } from 'lucide-react';
 
-export default function LandingView({ onAnalyze, onGetStarted }) {
+export default function LandingView({ onAnalyze, onGetStarted, isAnalyzing = false, analysisError = '' }) {
   const [url, setUrl] = useState('https://github.com/vercel/next.js');
 
   const handleSubmit = (e) => {
@@ -25,7 +26,8 @@ export default function LandingView({ onAnalyze, onGetStarted }) {
       {/* Top Navigation */}
       <header className="border-b border-slate-800/60 bg-[#0b0e17]/80 backdrop-blur-md sticky top-0 z-30 px-8 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-600 flex items-center justify-center text-xl shadow-lg shadow-indigo-500/20">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-600 flex items-center justify-center text-[0px] shadow-lg shadow-indigo-500/20">
+            <Bot className="w-6 h-6 text-white" aria-hidden="true" />
             🧑‍💻
           </div>
           <span className="font-extrabold text-xl tracking-tight text-white">AI GitHub Project Reviewer</span>
@@ -38,16 +40,24 @@ export default function LandingView({ onAnalyze, onGetStarted }) {
           <a href="#contact" className="hover:text-indigo-400 transition-colors">Contact</a>
         </nav>
 
-        <button 
-          onClick={onGetStarted}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs px-5 py-2.5 rounded-lg transition-all shadow-md shadow-indigo-600/30"
-        >
-          Get Started
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onGetStarted}
+            className="border border-slate-700 hover:border-indigo-500 text-slate-200 font-semibold text-xs px-5 py-2.5 rounded-lg transition-all"
+          >
+            Login
+          </button>
+          <button
+            onClick={onGetStarted}
+            className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs px-5 py-2.5 rounded-lg transition-all shadow-md shadow-indigo-600/30"
+          >
+            Get Started
+          </button>
+        </div>
       </header>
 
       {/* Hero Section */}
-      <section className="relative px-8 pt-16 pb-20 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+      <section id="home" className="relative px-8 pt-16 pb-20 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-12 items-center scroll-mt-24">
         {/* Glow Effects */}
         <div className="absolute top-10 left-10 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
 
@@ -55,7 +65,7 @@ export default function LandingView({ onAnalyze, onGetStarted }) {
         <div className="lg:col-span-7 space-y-6 z-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-950/60 border border-indigo-500/30 text-indigo-300 text-xs font-semibold">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>AI-Driven Automated Code Security</span>
+            <span>AI-Assisted Code Review & Security Checks</span>
           </div>
 
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-white leading-tight">
@@ -84,12 +94,14 @@ export default function LandingView({ onAnalyze, onGetStarted }) {
             </div>
             <button
               type="submit"
-              className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-medium text-sm px-6 py-3 rounded-lg transition-all shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 shrink-0"
+              disabled={isAnalyzing}
+              className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-60 text-white font-medium text-sm px-6 py-3 rounded-lg transition-all shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 shrink-0"
             >
-              <span>Analyze Repository</span>
-              <ArrowRight className="w-4 h-4" />
+              <span>{isAnalyzing ? 'Analyzing…' : 'Analyze Repository'}</span>
+              {!isAnalyzing && <ArrowRight className="w-4 h-4" />}
             </button>
           </form>
+          {analysisError && <p role="alert" className="max-w-2xl rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">{analysisError}</p>}
         </div>
 
         {/* Right Hero Graphics */}
@@ -127,7 +139,7 @@ export default function LandingView({ onAnalyze, onGetStarted }) {
       </section>
 
       {/* Tech Stack Banner */}
-      <section className="mt-auto border-t border-slate-800 bg-[#090c13] py-16 px-8 text-center">
+      <section id="features" className="border-t border-slate-800 bg-[#090c13] py-16 px-8 text-center scroll-mt-24">
         <div className="max-w-5xl mx-auto space-y-8">
           <div>
             <div className="inline-flex items-center gap-2 text-indigo-400 text-xs font-bold uppercase tracking-wider mb-2">
@@ -139,14 +151,25 @@ export default function LandingView({ onAnalyze, onGetStarted }) {
 
           <div className="flex flex-wrap items-center justify-center gap-6">
             <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-200">🐍 Python</div>
-            <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-200">⚡ FastAPI</div>
-            <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-200">🌐 HTML5</div>
-            <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-200">🎨 CSS3</div>
-            <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-200">📜 JavaScript / TS</div>
-            <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-200">🐘 PostgreSQL</div>
+            <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-200">⚛️ React + Vite</div>
+            <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-200">🌐 Python HTTP API</div>
+            <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-200">🗄️ SQLite</div>
+            <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-200">✨ Gemini (optional)</div>
           </div>
         </div>
       </section>
+
+      <section id="about" className="border-t border-slate-800 bg-[#080b13] py-16 px-8 scroll-mt-24">
+        <div className="max-w-4xl mx-auto text-center space-y-4">
+          <h2 className="text-3xl font-extrabold text-white">About CodeLens</h2>
+          <p className="text-slate-400 leading-relaxed">CodeLens reviews public GitHub repositories for code quality and common security risks, then presents findings with file locations and practical guidance. Gemini assistance is available when an API key is configured.</p>
+        </div>
+      </section>
+
+      <footer id="contact" className="border-t border-slate-800 bg-[#090c13] py-8 px-8 text-center scroll-mt-24">
+        <h2 className="text-lg font-bold text-white">Contact</h2>
+        <p className="mt-2 text-sm text-slate-400">For questions or feedback, contact the team maintaining this CodeLens project.</p>
+      </footer>
     </div>
   );
 }
