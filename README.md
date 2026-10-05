@@ -90,6 +90,12 @@ src/components/         Shared UI components
 src/views/              Landing, dashboard, chat, and analysis views
 ```
 
+## Project submission materials
+
+- [Project presentation](docs/CodeLens_AI_Project_Presentation.pptx)
+- [API documentation](docs/API.md)
+- [Database ER diagram](docs/database-er-diagram.md)
+
 ## Security notes
 
 - Keep `.env` private and rotate a key if it is accidentally exposed.
